@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="th"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex"><title>หลังร้าน – หยิบ แพ็ค ปะหน้าพัสดุ</title>
+<style>
+body{font:16px/1.5 Sarabun,sans-serif;margin:20px;color:#1d2a24}
+table{border-collapse:collapse;margin:8px 0 24px}td,th{border:1px solid #bbb;padding:6px 12px;text-align:left}
+.label{border:2px solid #000;padding:12px;margin:12px 0;width:105mm;page-break-inside:avoid}
+.label h3{margin:0 0 6px}.from{font-size:13px;border-bottom:1px dashed #000;padding-bottom:6px;margin-bottom:8px}
+button{padding:8px 16px;font:inherit;cursor:pointer}
+@media print{.no{display:none}}
+</style></head><body>
+<div class="no">
+<h1>จัดการออเดอร์</h1>
+<input id="k" type="password" placeholder="รหัส admin"> <button onclick="load()">โหลดออเดอร์</button>
+<label><input type="checkbox" id="all" onchange="draw()"> แสดงที่แพ็คแล้วด้วย</label>
+<button onclick="print()">พิมพ์ใบปะหน้า</button>
+<h2>1) ใบหยิบสินค้า (รวมตาม SKU)</h2><div id="pick"></div>
+<h2>2) ใบปะหน้าพัสดุ</h2></div>
+<div id="labels"></div>
+<script>
+// ====== แก้ค่าตรงนี้ ======
+const SHEET_URL="PASTE_APPS_SCRIPT_WEB_APP_URL_HERE";
+const SENDER="ร้านน้ำผึ้งป่า | 99 ถ.ตัวอย่าง เขตตัวอย่าง กรุงเทพฯ 10100 | โทร 080-000-0000";
+// =========================
+let rows=[];const $=id=>document.getElementById(id);
+async function load(){
+ const r=await fetch(SHEET_URL+"?key="+encodeURIComponent($("k").value));
+ const d=await r.json();if(d.error){alert("รหัสไม่ถูกต้อง");return}
+ rows=d;draw()}
+function draw(){
+ const list=rows.filter(r=>$("all").checked||r.status==="new");
+ const pick={};list.forEach(r=>{pick[r.sku]=pick[r.sku]||{n:r.product,q:0};pick[r.sku].q+=+r.qty});
+ $("pick").innerHTML="<table><tr><th>SKU</th><th>สินค้า</th><th>จำนวนที่ต้องหยิบ</th></tr>"+
+  Object.entries(pick).map(([s,p])=>`<tr><td>${s}</td><td>${p.n}</td><td>${p.q}</td></tr>`).join("")+"</table>";
+ const o={};list.forEach(r=>(o[r.orderId]=o[r.orderId]||{...r,items:[],sum:0}).items.push(`${r.sku} ${r.product} × ${r.qty}`),o[r.orderId]&&(o[r.orderId].sum+=+r.total));
+ $("labels").innerHTML=Object.entries(o).map(([id,x])=>`<div class="label"><div class="from">ผู้ส่ง: ${SENDER}</div>
+ <h3>ผู้รับ: ${esc(x.name)} โทร ${esc(x.phone)}</h3><div>${esc(x.address)}</div>
+ <hr><small>${id}<br>${x.items.map(esc).join("<br>")}<br>ยอดรวม ${x.sum} บาท</small>
+ <div class="no"><button onclick="pack('${id}')">ทำเครื่องหมายว่าแพ็คแล้ว</button></div></div>`).join("")}
+async function pack(id){await fetch(SHEET_URL+"?key="+encodeURIComponent($("k").value)+"&pack="+id);load()}
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+</script></body></html>
